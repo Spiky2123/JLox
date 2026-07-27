@@ -26,22 +26,22 @@ public class Lox {
         }
     }
 
-    private static void runFile(String path) throws IOException{
+    private static void runFile(String path) throws IOException {
         byte[] bytes = Files.readAllBytes(Paths.get(path));
         run(new String(bytes, Charset.defaultCharset()));
-        if(hadError) System.exit(65);
-        if(hadRuntimeError) System.exit(70);
+        if (hadError) System.exit(65);
+        if (hadRuntimeError) System.exit(70);
     }
 
-    private static void runPrompt() throws IOException{
+    private static void runPrompt() throws IOException {
         InputStreamReader input = new InputStreamReader(System.in);
         BufferedReader reader = new BufferedReader(input);
 
-        for(;;) {
+        for (; ; ) {
             System.out.print("> ");
             String line = reader.readLine();
             // readline returns null when user enters ctrl + d signaling a stop
-            if(line == null) break;
+            if (line == null) break;
             run(line);
             hadError = false;
         }
@@ -52,33 +52,33 @@ public class Lox {
         List<Token> tokens = scanner.scanTokens();
 
         Parser parser = new Parser(tokens);
-        Expr expression = parser.parse();
+        List<Stmt> statements = parser.parse();
 
         //Stop if there was a syntax error
-        if(hadError) return;
+        if (hadError) return;
 
-        interpreter.interpret(expression);
+        interpreter.interpret(statements);
     }
 
     // Good practice: Separate the code that generates errors from the one that reports them
-    static void error(int line, String message){
+    static void error(int line, String message) {
         report(line, "", message);
     }
 
-    private static void report(int line, String where, String message){
-        System.err.println("[line "+ line + "] Error"+ where + ": " + message);
+    private static void report(int line, String where, String message) {
+        System.err.println("[line " + line + "] Error" + where + ": " + message);
         hadError = true;
     }
 
-    static void error(Token token, String message){
-        if(token.type == TokenType.EOF){
+    static void error(Token token, String message) {
+        if (token.type == TokenType.EOF) {
             report(token.line, " at end", message);
         } else {
             report(token.line, " at " + token.lexeme + "'", message);
         }
     }
 
-    static void runtimeError(RuntimeError error){
+    static void runtimeError(RuntimeError error) {
         System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
 
         hadRuntimeError = true;
