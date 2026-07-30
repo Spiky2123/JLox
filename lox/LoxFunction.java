@@ -12,25 +12,25 @@ public class LoxFunction implements LoxCallable {
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return "<fn " + declaration.name.lexeme + ">";
     }
 
     @Override
     public int arity() {
-        return declaration.params.size();
+        return declaration.function.params.size();
     }
 
     @Override
     public Object call(Interpreter interpreter, List<Object> arguments) {
         Enviorment enviorment = new Enviorment(closure);
-        for (int i = 0; i < declaration.params.size(); i++) {
-            enviorment.define(declaration.params.get(i).lexeme, arguments.get(i));
+        for (int i = 0; i < declaration.function.params.size(); i++) {
+            enviorment.define(declaration.function.params.get(i).lexeme, arguments.get(i));
         }
 
-        try{
-            interpreter.executeBlock(declaration.body, enviorment);
-        } catch (Return returnValue){
+        try {
+            interpreter.executeBlock(declaration.function.body, enviorment);
+        } catch (Return returnValue) {
             return returnValue.value;
         }
         return null;

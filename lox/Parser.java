@@ -174,15 +174,15 @@ public class Parser {
 
         consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
         List<Stmt> body = block();
-        return new Stmt.Function(name, parameters, body);
+        return new Stmt.Function(name, new Expr.Lambda(parameters, body));
     }
 
-    private Expr lambda(String kind){
+    private Expr lambda(String kind) {
         consume(LEFT_PAREN, "Expect '(' after \"fun\".");
         List<Token> parameters = new ArrayList<>();
         if (!check(RIGHT_PAREN)) {
-            do{
-                if(parameters.size() >= 255){
+            do {
+                if (parameters.size() >= 255) {
                     error(peek(), "Can't have more than 255 parameters.");
                 }
 
