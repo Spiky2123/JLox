@@ -21,6 +21,11 @@ public class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
+    public String visitLambdaExpr(Expr.Lambda expr) {
+        return "";
+    }
+
+    @Override
     public String visitGroupingExpr(Expr.Grouping expr) {
         return paranthesize("group", expr.expression);
     }

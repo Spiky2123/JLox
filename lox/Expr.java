@@ -7,6 +7,7 @@ abstract class Expr {
         R visitAssignExpr(Assign expr);
         R visitBinaryExpr(Binary expr);
         R visitCallExpr(Call expr);
+        R visitLambdaExpr(Lambda expr);
         R visitGroupingExpr(Grouping expr);
         R visitLiteralExpr(Literal expr);
         R visitLogicalExpr(Logical expr);
@@ -58,6 +59,20 @@ abstract class Expr {
         final Expr callee;
         final Token paren;
         final List<Expr> arguments;
+    }
+    static class Lambda extends Expr {
+        Lambda(List<Token> params, List<Stmt> body) {
+            this.params = params;
+            this.body = body;
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitLambdaExpr(this);
+        }
+
+        final List<Token> params;
+        final List<Stmt> body;
     }
     static class Grouping extends Expr {
         Grouping(Expr expression) {
