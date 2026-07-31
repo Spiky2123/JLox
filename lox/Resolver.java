@@ -8,6 +8,7 @@ import java.util.Stack;
 public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack<>();
+    private final Stack<Map<String, Token>> unused = new Stack<>();
     private FunctionType currentFunction = FunctionType.NONE;
 
     Resolver(Interpreter interpreter) {
@@ -41,9 +42,15 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private void beginScope() {
         scopes.push(new HashMap<String, Boolean>());
+        unused.push(new HashMap<String, Token>());
     }
 
     private void endScope() {
+        for(Token token : unused.peek().values()){
+            Lox.error(token, "Variable declared but never used.");
+        }
+
+        unused.pop();
         scopes.pop();
     }
 
@@ -55,6 +62,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             Lox.error(name, "Already a variable with this name in this scope.");
         }
         scope.put(name.lexeme, false);
+        unused.peek().put(name.lexeme, name);
     }
 
     private void define(Token name) {
@@ -66,6 +74,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         for (int i = scopes.size() - 1; i >= 0; i--) {
             if (scopes.get(i).containsKey(name.lexeme)) {
                 interpreter.resolve(expr, scopes.size() - 1 - i);
+                unused.get(i).remove(name.lexeme);
                 return;
             }
         }
