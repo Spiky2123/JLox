@@ -1,12 +1,15 @@
 package lox;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
-    final Enviorment globals = new Enviorment();
-    private Enviorment enviorment = globals;
+    final Environment globals = new Environment();
+    private Environment enviorment = globals;
+    private final Map<Expr, Integer> locals = new HashMap<>();
 
     Interpreter(){
         globals.define("clock", new LoxCallable(){
@@ -41,8 +44,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         stmt.accept(this);
     }
 
-    void executeBlock(List<Stmt> statements, Enviorment enviorment) {
-        Enviorment previous = this.enviorment;
+    void resolve(Expr expr, int depth){
+        locals.put(expr, depth);
+    }
+
+    void executeBlock(List<Stmt> statements, Environment enviorment) {
+        Environment previous = this.enviorment;
         try {
             this.enviorment = enviorment;
 
@@ -56,7 +63,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitBlockStmt(Stmt.Block stmt) {
-        executeBlock(stmt.statements, new Enviorment(enviorment));
+        executeBlock(stmt.statements, new Environment(enviorment));
         return null;
     }
 
@@ -119,7 +126,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
-        enviorment.assign(expr.name, value);
+
+        Integer distance = locals.get(expr);
+        if(distance != null){
+            enviorment.assignAt(distance, expr.name, value);
+        } else{
+            globals.assign(expr.name, value);
+        }
+
         return value;
     }
 
@@ -230,7 +244,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
-        return enviorment.get(expr.name);
+        return lookUpVariable(expr.name, expr);
+    }
+
+    private Object lookUpVariable(Token name, Expr expr){
+        Integer distance = locals.get(expr);
+        if(distance != null){
+            return enviorment.getAt(distance, name.lexeme);
+        }else{
+            return globals.get(name);
+        }
     }
 
     private void checkNumberOperand(Token operator, Object operand) {
