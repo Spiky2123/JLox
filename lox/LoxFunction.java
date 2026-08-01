@@ -19,6 +19,10 @@ public class LoxFunction implements LoxCallable {
         return new LoxFunction(declaration, environment, isInitializer);
     }
 
+    boolean isGetter(){
+        return declaration.isGetter;
+    }
+
     @Override
     public String toString(){
         return "<fn " + declaration.name.lexeme + ">";
@@ -26,14 +30,16 @@ public class LoxFunction implements LoxCallable {
 
     @Override
     public int arity() {
-        return declaration.params.size();
+        return declaration.isGetter ? 0 : declaration.params.size();
     }
 
     @Override
     public Object call(Interpreter interpreter, List<Object> arguments) {
         Environment environment = new Environment(closure);
-        for (int i = 0; i < declaration.params.size(); i++) {
-            environment.define(declaration.params.get(i).lexeme, arguments.get(i));
+        if(!declaration.isGetter) {
+            for (int i = 0; i < declaration.params.size(); i++) {
+                environment.define(declaration.params.get(i).lexeme, arguments.get(i));
+            }
         }
 
         try{

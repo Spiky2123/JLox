@@ -177,6 +177,13 @@ public class Parser {
 
     private Stmt.Function function(String kind) {
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
+
+        if(kind.equals("method") && !check(LEFT_PAREN)){
+            consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+            List<Stmt> body = block();
+            return new Stmt.Function(name, null, body, true);
+        }
+
         consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
         List<Token> parameters = new ArrayList<>();
         if (!check(RIGHT_PAREN)) {
@@ -192,7 +199,7 @@ public class Parser {
 
         consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
         List<Stmt> body = block();
-        return new Stmt.Function(name, parameters, body);
+        return new Stmt.Function(name, parameters, body, false);
     }
 
     private List<Stmt> block() {
@@ -292,7 +299,7 @@ public class Parser {
         while (match(SLASH, STAR)) {
             Token operator = previous();
             Expr right = unary();
-            return new Expr.Binary(expr, operator, right);
+            expr = new Expr.Binary(expr, operator, right);
         }
 
         return expr;
