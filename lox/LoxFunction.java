@@ -30,21 +30,19 @@ public class LoxFunction implements LoxCallable {
     }
 
     @Override
-    public Object call(Interpreter interpreter, List<Object> arguments) {
+    public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
         Environment environment = new Environment(closure);
         for (int i = 0; i < declaration.params.size(); i++) {
             environment.define(declaration.params.get(i).lexeme, arguments.get(i));
         }
 
-        try{
+        try {
             interpreter.executeBlock(declaration.body, environment);
-        } catch (Return returnValue){
-            if(isInitializer) return closure.getAt(0, "this");
+        } catch (Return returnValue) {
+            if (isInitializer) return closure.getAt(0, "this");
             return returnValue.value;
-        } catch (RuntimeException exception){
-            throw new RuntimeError(this.declaration.name, exception.getMessage());
         }
-        if(isInitializer) return closure.getAt(0, "this");
+        if (isInitializer) return closure.getAt(0, "this");
         return null;
     }
 }

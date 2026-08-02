@@ -1,8 +1,6 @@
 package lox;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
@@ -226,7 +224,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             throw new RuntimeError(expr.paren, "Expected " + function.arity() + " arguments but got " + arguments.size() + ".");
         }
 
-        return function.call(this, arguments);
+        return function.call(this, arguments, expr.paren);
     }
 
     @Override
@@ -314,18 +312,22 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return lookUpVariable(expr.name, expr);
     }
 
-    private void defineNative(){
-        globals.define("clock", new LoxCallable(){
+    private void defineNative() {
+        globals.define("clock", new LoxCallable() {
             @Override
-            public int arity() { return 0;}
-
-            @Override
-            public Object call(Interpreter interpreter, List<Object> arguments){
-                return (double)System.currentTimeMillis()/1000.0;
+            public int arity() {
+                return 0;
             }
 
             @Override
-            public String toString(){ return "<native fn>";}
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                return (double) System.currentTimeMillis() / 1000.0;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
         });
         globals.define("write", new LoxCallable() {
             @Override
@@ -334,9 +336,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
 
             @Override
-            public Object call(Interpreter interpreter, List<Object> arguments) {
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
                 System.out.print(stringify(arguments.get(0)));
                 return null;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
             }
         });
         globals.define("readLine", new LoxCallable() {
@@ -346,15 +353,113 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
 
             @Override
-            public Object call(Interpreter interpreter, List<Object> arguments) {
-                try{
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                try {
                     InputStreamReader input = new InputStreamReader(System.in);
                     BufferedReader reader = new BufferedReader(input);
 
-                    String line = reader.readLine();
-                    return line == null ? null : line;
+                    return reader.readLine();
                 } catch (IOException e) {
-                    throw new RuntimeError(null, "Could not read standard input.");
+                    throw new RuntimeError(token, "Could not read standard input.");
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("openFile", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 2;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                String path;
+                String mode;
+                try {
+                    path = (String) arguments.get(0);
+                    mode = (String) arguments.get(1);
+                } catch (Exception e) {
+                    throw new RuntimeError(token, "Invalid argument type.");
+                }
+                try {
+                    if (mode.equals("r")) {
+                        return new BufferedReader(new FileReader(path));
+                    }
+                    if (mode.equals("w")) {
+                        return new BufferedWriter(new FileWriter(path));
+                    }
+                    throw new RuntimeError(null, "Invalid mode.");
+                } catch (IOException e) {
+                    throw new RuntimeError(token, "Could not open file '" + path + "'.");
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("fileReadLine", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if(!(arguments.get(0) instanceof BufferedReader)){
+                    throw new RuntimeError(token, "Argument must be a file opened for reading.");
+                }
+                try{
+                    return ((BufferedReader)arguments.get(0)).readLine();
+                } catch (IOException e) {
+                    throw new RuntimeError(token, "Read error.");
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("fileWrite", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 2;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if(!(arguments.get(0) instanceof BufferedWriter)){
+                    throw new RuntimeError(token, "Argument must be a file opened for writing.");
+                }
+                try{
+                    ((Writer)arguments.get(0)).write(stringify(arguments.get(1)));
+                } catch (IOException e) {
+                    throw new RuntimeError(token, "Write error.");
+                }
+                return null;
+            }
+        });
+        globals.define("closeFile", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                try {
+                    if (arguments.get(0) instanceof Reader || arguments.get(0) instanceof Writer) {
+                        ((Closeable) arguments.get(0)).close();
+                    }
+                    return null;
+                } catch (IOException e) {
+                    throw new RuntimeError(token, "Could not close file.");
                 }
             }
         });
