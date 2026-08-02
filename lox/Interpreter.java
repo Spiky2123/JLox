@@ -1,5 +1,8 @@
 package lox;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
@@ -12,18 +15,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private final Map<Expr, Integer> locals = new HashMap<>();
 
     Interpreter(){
-        globals.define("clock", new LoxCallable(){
-            @Override
-            public int arity() { return 0;}
-
-            @Override
-            public Object call(Interpreter interpreter, List<Object> arguments){
-                return (double)System.currentTimeMillis()/1000.0;
-            }
-
-            @Override
-            public String toString(){ return "<native fn>";}
-        });
+        defineNative();
     }
 
     void interpret(List<Stmt> statements) {
@@ -320,6 +312,52 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
         return lookUpVariable(expr.name, expr);
+    }
+
+    private void defineNative(){
+        globals.define("clock", new LoxCallable(){
+            @Override
+            public int arity() { return 0;}
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments){
+                return (double)System.currentTimeMillis()/1000.0;
+            }
+
+            @Override
+            public String toString(){ return "<native fn>";}
+        });
+        globals.define("write", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                System.out.print(stringify(arguments.get(0)));
+                return null;
+            }
+        });
+        globals.define("readLine", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 0;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                try{
+                    InputStreamReader input = new InputStreamReader(System.in);
+                    BufferedReader reader = new BufferedReader(input);
+
+                    String line = reader.readLine();
+                    return line == null ? null : line;
+                } catch (IOException e) {
+                    throw new RuntimeError(null, "Could not read standard input.");
+                }
+            }
+        });
     }
 
     private Object lookUpVariable(Token name, Expr expr){
