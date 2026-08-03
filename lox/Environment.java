@@ -15,7 +15,7 @@ public class Environment {
         this.enclosing = enclosing;
     }
 
-    Object get(Token name) {
+    synchronized Object get(Token name) {
         if (values.containsKey(name.lexeme)) {
             return values.get((name.lexeme));
         }
@@ -25,7 +25,7 @@ public class Environment {
         throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
     }
 
-    void assign(Token name, Object value) {
+    synchronized void assign(Token name, Object value) {
         if (values.containsKey(name.lexeme)) {
             values.put(name.lexeme, value);
             return;
@@ -39,7 +39,7 @@ public class Environment {
         throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
     }
 
-    void define(String name, Object value) {
+    synchronized void define(String name, Object value) {
         values.put(name, value);
     }
 
@@ -52,11 +52,11 @@ public class Environment {
         return environment;
     }
 
-    Object getAt(int distance, String name){
+    synchronized Object getAt(int distance, String name){
         return ancestor(distance).values.get(name);
     }
 
-    void assignAt(int distance, Token name, Object value){
+    synchronized void assignAt(int distance, Token name, Object value){
         ancestor(distance).values.put(name.lexeme, value);
     }
 }

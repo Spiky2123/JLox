@@ -5,15 +5,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
-    final Environment globals = new Environment();
-    private Environment environment = globals;
-    private final Map<Expr, Integer> locals = new HashMap<>();
+    final Environment globals;
+    private Environment environment;
+    private final Map<Expr, Integer> locals;
 
     Interpreter(){
+        this.globals = new Environment();
+        this.environment = globals;
+        this.locals = new HashMap<>();
         defineNative();
+    }
+
+    Interpreter(Interpreter original){
+        this.globals = original.globals;
+        this.locals = original.locals;
+        this.environment = original.environment;
     }
 
     void interpret(List<Stmt> statements) {
@@ -220,7 +231,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
 
         LoxCallable function = (LoxCallable)callee;
-        if(arguments.size() != function.arity()){
+        if(function.arity() != -1 && arguments.size() != function.arity()){
             throw new RuntimeError(expr.paren, "Expected " + function.arity() + " arguments but got " + arguments.size() + ".");
         }
 
@@ -411,11 +422,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
             @Override
             public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
-                if(!(arguments.get(0) instanceof BufferedReader)){
+                if (!(arguments.get(0) instanceof BufferedReader)) {
                     throw new RuntimeError(token, "Argument must be a file opened for reading.");
                 }
-                try{
-                    return ((BufferedReader)arguments.get(0)).readLine();
+                try {
+                    return ((BufferedReader) arguments.get(0)).readLine();
                 } catch (IOException e) {
                     throw new RuntimeError(token, "Read error.");
                 }
@@ -434,15 +445,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
             @Override
             public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
-                if(!(arguments.get(0) instanceof BufferedWriter)){
+                if (!(arguments.get(0) instanceof BufferedWriter)) {
                     throw new RuntimeError(token, "Argument must be a file opened for writing.");
                 }
-                try{
-                    ((Writer)arguments.get(0)).write(stringify(arguments.get(1)));
+                try {
+                    ((Writer) arguments.get(0)).write(stringify(arguments.get(1)));
                 } catch (IOException e) {
                     throw new RuntimeError(token, "Write error.");
                 }
                 return null;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
             }
         });
         globals.define("closeFile", new LoxCallable() {
@@ -461,6 +477,72 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 } catch (IOException e) {
                     throw new RuntimeError(token, "Could not close file.");
                 }
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("threadCreate", new LoxCallable() {
+            @Override
+            public int arity() {
+                return -1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if (arguments.isEmpty() || !(arguments.get(0) instanceof LoxCallable)) {
+                    throw new RuntimeError(token, "First argument to thread must be callable.");
+                }
+
+                LoxCallable function = (LoxCallable) arguments.get(0);
+                List<Object> fnArguments = new ArrayList<>(arguments.subList(1, arguments.size()));
+
+                if (function.arity() != -1 && function.arity() != fnArguments.size()) {
+                    throw new RuntimeError(token, "Function passed to thread() expected '" + function.arity() + "' arguments but got '" + fnArguments.size() + "' instead.");
+                }
+
+                Thread t = new Thread(() -> {
+                    try {
+                        Interpreter threadInterpreter = new Interpreter(interpreter);
+                        function.call(threadInterpreter, fnArguments, token);
+                    } catch (RuntimeError error) {
+                        Lox.runtimeError(error);
+                    }
+                });
+                t.start();
+                return t;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("threadJoin", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if (!(arguments.get(0) instanceof Thread)) {
+                    throw new RuntimeError(token, "Argument must be a thread instance.");
+                }
+                Thread t = (Thread) arguments.get(0);
+                try {
+                    t.join();
+                } catch (InterruptedException e) {
+                    throw new RuntimeError(token, "Thread join was interrupted.");
+                }
+                return null;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
             }
         });
     }
