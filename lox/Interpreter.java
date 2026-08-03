@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -603,6 +604,53 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             @Override
             public String toString() {
                 return "<native fn>";
+            }
+        });
+        globals.define("barrierInit", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if (!(arguments.get(0) instanceof Double)) {
+                    throw new RuntimeError(token, "Argument must be a number.");
+                }
+
+                double raw = (Double) arguments.get(0);
+                int intPart = (int) raw;
+
+                if (intPart <= 0 || intPart != raw) {
+                    throw new RuntimeError(token, "Argument must be a positive whole number.");
+                }
+
+                return new CyclicBarrier(intPart);
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("barrierWait", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if(!(arguments.get(0) instanceof CyclicBarrier)){
+                    throw new RuntimeError(token, "Argument must be of type barrier.");
+                }
+                try {
+                    return ((CyclicBarrier)arguments.get(0)).await();
+                } catch (InterruptedException e) {
+                    throw new RuntimeError(token, "Thread was interrupted.");
+                } catch (BrokenBarrierException e) {
+                    throw new RuntimeError(token, "Barrier was broken.");
+                }
             }
         });
     }
