@@ -545,6 +545,66 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return "<native fn>";
             }
         });
+        globals.define("mutexInit", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 0;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                return new ReentrantLock();
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("mutexLock", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if (!(arguments.get(0) instanceof ReentrantLock)) {
+                    throw new RuntimeError(token, "Argument must be of type Mutex.");
+                }
+                ((ReentrantLock) arguments.get(0)).lock();
+                return null;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+        globals.define("mutexUnlock", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token token) {
+                if (!(arguments.get(0) instanceof ReentrantLock)) {
+                    throw new RuntimeError(token, "Argument must be of type Mutex.");
+                }
+                try {
+                    ((ReentrantLock) arguments.get(0)).unlock();
+                } catch (IllegalMonitorStateException e) {
+                    throw new RuntimeError(token, "Can't unlock a mutex that isn't held by the current thread.");
+                }
+                return null;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
     }
 
     private Object lookUpVariable(Token name, Expr expr){
